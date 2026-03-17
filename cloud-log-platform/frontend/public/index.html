@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud Log Platform</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0a0e17;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    /* Navigation */
+    .navbar {
+      background: linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%);
+      border-bottom: 2px solid #1e88e5;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      height: 60px;
+      justify-content: space-between;
+    }
+
+    .navbar .logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: #42a5f5;
+    }
+
+    .navbar .logo span { color: #fff; }
+
+    .nav-links {
+      display: flex;
+      gap: 4px;
+    }
+
+    .nav-links button {
+      background: transparent;
+      border: none;
+      color: #90a4ae;
+      padding: 8px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.3s;
+      font-weight: 500;
+    }
+
+    .nav-links button:hover { background: #1a2332; color: #fff; }
+    .nav-links button.active { background: #1e88e5; color: #fff; }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #69f0ae;
+    }
+
+    .user-info .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #1e88e5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+    }
+
+    .user-info.hidden { display: none; }
+
+    /* Pages */
+    .page { display: none; padding: 32px; }
+    .page.active { display: block; }
+
+    /* Login Page */
+    .login-container {
+      max-width: 420px;
+      margin: 80px auto;
+      background: #1a2332;
+      border: 1px solid #263238;
+      border-radius: 16px;
+      padding: 40px;
+    }
+
+    .login-container h2 {
+      text-align: center;
+      color: #fff;
+      margin-bottom: 8px;
+      font-size: 24px;
+    }
+
+    .login-container .subtitle {
+      text-align: center;
+      color: #78909c;
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: #90a4ae;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: #0d1b2a;
+      border: 1px solid #37474f;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus { border-color: #1e88e5; }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #1e88e5, #1565c0);
+      color: #fff;
+      width: 100%;
+    }
+
+    .btn-primary:hover { background: linear-gradient(135deg, #1565c0, #0d47a1); }
+
+    .btn-success {
+      background: linear-gradient(135deg, #43a047, #2e7d32);
+      color: #fff;
+    }
+
+    .btn-success:hover { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
+
+    .btn-book {
+      background: linear-gradient(135deg, #fb8c00, #e65100);
+      color: #fff;
+      padding: 8px 20px;
+      font-size: 13px;
+    }
+
+    .btn-book:hover { background: linear-gradient(135deg, #e65100, #bf360c); }
+
+    .btn-sm {
+      padding: 8px 16px;
+      font-size: 13px;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #37474f;
+      color: #90a4ae;
+    }
+
+    .btn-outline:hover { border-color: #1e88e5; color: #1e88e5; }
+
+    .login-error {
+      background: #b71c1c22;
+      border: 1px solid #ef5350;
+      color: #ef9a9a;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .login-success {
+      background: #1b5e2022;
+      border: 1px solid #69f0ae;
+      color: #69f0ae;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .login-hint {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #546e7a;
+    }
+
+    /* Events Page */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .page-header h2 {
+      font-size: 22px;
+      color: #fff;
+    }
+
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .event-card {
+      background: #1a2332;
+      border: 1px solid #263238;
+      border-radius: 12px;
+      padding: 24px;
+      transition: border-color 0.3s, transform 0.2s;
+    }
+
+    .event-card:hover {
+      border-color: #1e88e5;
+      transform: translateY(-2px);
+    }
+
+    .event-card h3 {
+      font-size: 18px;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    .event-card .event-detail {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #90a4ae;
+      margin-bottom: 8px;
+    }
+
+    .event-card .event-detail .icon {
+      width: 20px;
+      text-align: center;
+    }
+
+    .event-card .event-actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .event-id {
+      display: inline-block;
+      background: #0d47a1;
+      color: #90caf9;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    /* Create Event Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: #1a2332;
+      border: 1px solid #263238;
+      border-radius: 16px;
+      padding: 32px;
+      width: 440px;
+      max-width: 90vw;
+    }
+
+    .modal h3 {
+      font-size: 20px;
+      color: #fff;
+      margin-bottom: 24px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+
+    /* Bookings Page */
+    .bookings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .booking-card {
+      background: #1a2332;
+      border: 1px solid #263238;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: border-color 0.3s;
+    }
+
+    .booking-card:hover { border-color: #1e88e5; }
+
+    .booking-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .booking-icon {
+      width: 48px;
+      height: 48px;
+      background: #0d47a1;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .booking-details h4 { color: #fff; font-size: 15px; margin-bottom: 4px; }
+    .booking-details p { color: #78909c; font-size: 13px; }
+
+    .booking-status {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .booking-status.confirmed {
+      background: #1b5e2033;
+      color: #69f0ae;
+      border: 1px solid #69f0ae44;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1a2332;
+      border: 1px solid #263238;
+      border-radius: 12px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 200;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      max-width: 400px;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: #69f0ae; }
+    .toast.error { border-color: #ef5350; }
+
+    .toast-icon { font-size: 20px; }
+    .toast-message { font-size: 13px; color: #b0bec5; }
+    .toast-message strong { color: #fff; display: block; margin-bottom: 2px; }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #546e7a;
+    }
+
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state p { font-size: 14px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .navbar { padding: 0 16px; }
+      .page { padding: 20px; }
+      .events-grid { grid-template-columns: 1fr; }
+      .login-container { margin: 40px 16px; }
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ffffff44;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Notification bar */
+    .notification-bar {
+      background: #0d47a1;
+      color: #90caf9;
+      text-align: center;
+      padding: 8px;
+      font-size: 12px;
+      display: none;
+    }
+
+    .notification-bar.show { display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- Notification Bar -->
+  <div class="notification-bar" id="notification-bar">
+    Every action you perform here generates a log. Watch it appear on the Log Dashboard (port 4000) in real-time!
+  </div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="logo"><span>Cloud</span>Log Platform</div>
+    <div class="nav-links">
+      <button class="active" onclick="showPage('login')">Login</button>
+      <button onclick="showPage('events')" id="nav-events">Events</button>
+      <button onclick="showPage('bookings')" id="nav-bookings">Bookings</button>
+    </div>
+    <div class="user-info hidden" id="user-info">
+      <div class="avatar" id="user-avatar">U</div>
+      <span id="user-name">user</span>
+    </div>
+  </nav>
+
+  <!-- Login Page -->
+  <div class="page active" id="page-login">
+    <div class="login-container">
+      <h2>Welcome Back</h2>
+      <p class="subtitle">Sign in to access the Cloud Log Platform</p>
+
+      <div class="login-error" id="login-error"></div>
+      <div class="login-success" id="login-success"></div>
+
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="login-username" placeholder="Enter username" value="user">
+      </div>
+
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter password" value="pass">
+      </div>
+
+      <button class="btn btn-primary" id="login-btn" onclick="handleLogin()">
+        Sign In
+      </button>
+
+      <p class="login-hint">
+        Demo credentials: <strong>user / pass</strong> or <strong>admin / admin123</strong>
+      </p>
+    </div>
+  </div>
+
+  <!-- Events Page -->
+  <div class="page" id="page-events">
+    <div class="page-header">
+      <h2>Events</h2>
+      <button class="btn btn-success btn-sm" onclick="openCreateEvent()">+ Create Event</button>
+    </div>
+    <div class="events-grid" id="events-grid">
+      <div class="empty-state">
+        <div class="icon">...</div>
+        <p>Loading events...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bookings Page -->
+  <div class="page" id="page-bookings">
+    <div class="page-header">
+      <h2>My Bookings</h2>
+      <button class="btn btn-outline btn-sm" onclick="loadBookings()">Refresh</button>
+    </div>
+    <div class="bookings-list" id="bookings-list">
+      <div class="empty-state">
+        <div class="icon">...</div>
+        <p>Loading bookings...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Event Modal -->
+  <div class="modal-overlay" id="create-event-modal">
+    <div class="modal">
+      <h3>Create New Event</h3>
+      <div class="form-group">
+        <label>Event Name</label>
+        <input type="text" id="event-name" placeholder="e.g. Tech Conference 2026">
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="event-date" value="2026-06-01">
+      </div>
+      <div class="form-group">
+        <label>Venue</label>
+        <input type="text" id="event-venue" placeholder="e.g. Mumbai Convention Center">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline btn-sm" onclick="closeCreateEvent()">Cancel</button>
+        <button class="btn btn-success btn-sm" onclick="handleCreateEvent()">Create Event</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <div class="toast-icon" id="toast-icon"></div>
+    <div class="toast-message" id="toast-message"></div>
+  </div>
+
+  <script>
+    let authToken = null;
+    let currentUser = null;
+
+    // Navigation
+    function showPage(page) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-links button').forEach(b => b.classList.remove('active'));
+
+      document.getElementById(`page-${page}`).classList.add('active');
+      event.target.classList.add('active');
+
+      if (page === 'events') loadEvents();
+      if (page === 'bookings') loadBookings();
+    }
+
+    // Toast notification
+    function showToast(title, message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toast-icon');
+      const msg = document.getElementById('toast-message');
+
+      toast.className = `toast ${type}`;
+      icon.textContent = type === 'success' ? '✓' : '✗';
+      msg.innerHTML = `<strong>${title}</strong>${message}`;
+
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 4000);
+    }
+
+    // LOGIN
+    async function handleLogin() {
+      const username = document.getElementById('login-username').value;
+      const password = document.getElementById('login-password').value;
+      const errorDiv = document.getElementById('login-error');
+      const successDiv = document.getElementById('login-success');
+      const btn = document.getElementById('login-btn');
+
+      errorDiv.style.display = 'none';
+      successDiv.style.display = 'none';
+      btn.innerHTML = '<span class="spinner"></span> Signing in...';
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          authToken = data.token;
+          currentUser = username;
+
+          successDiv.textContent = 'Login successful! Redirecting...';
+          successDiv.style.display = 'block';
+
+          // Update UI
+          document.getElementById('user-info').classList.remove('hidden');
+          document.getElementById('user-avatar').textContent = username[0].toUpperCase();
+          document.getElementById('user-name').textContent = username;
+          document.getElementById('notification-bar').classList.add('show');
+
+          showToast('Login Successful', `Welcome back, ${username}! A log was just sent to Kafka.`);
+
+          setTimeout(() => {
+            document.getElementById('page-login').classList.remove('active');
+            document.getElementById('page-events').classList.add('active');
+            document.querySelectorAll('.nav-links button').forEach(b => b.classList.remove('active'));
+            document.getElementById('nav-events').classList.add('active');
+            loadEvents();
+          }, 1000);
+
+        } else {
+          errorDiv.textContent = data.error || 'Login failed';
+          errorDiv.style.display = 'block';
+          showToast('Login Failed', data.error || 'Invalid credentials', 'error');
+        }
+      } catch (e) {
+        errorDiv.textContent = 'Cannot connect to auth service';
+        errorDiv.style.display = 'block';
+        showToast('Connection Error', 'Auth service is unavailable', 'error');
+      }
+
+      btn.textContent = 'Sign In';
+    }
+
+    // EVENTS
+    async function loadEvents() {
+      const grid = document.getElementById('events-grid');
+      try {
+        const res = await fetch('/api/events');
+        const data = await res.json();
+        const events = data.events || [];
+
+        if (events.length === 0) {
+          grid.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No events yet. Create one!</p></div>';
+          return;
+        }
+
+        grid.innerHTML = events.map(ev => `
+          <div class="event-card">
+            <div class="event-id">ID: ${ev.id}</div>
+            <h3>${ev.name}</h3>
+            <div class="event-detail">
+              <span class="icon">📅</span>
+              <span>${ev.date}</span>
+            </div>
+            <div class="event-detail">
+              <span class="icon">📍</span>
+              <span>${ev.venue || 'TBD'}</span>
+            </div>
+            <div class="event-actions">
+              <button class="btn btn-book" onclick="handleBooking('${ev.id}', '${ev.name}')">
+                Book Ticket
+              </button>
+            </div>
+          </div>
+        `).join('');
+
+      } catch (e) {
+        grid.innerHTML = '<div class="empty-state"><div class="icon">⚠</div><p>Cannot load events. Is the event service running?</p></div>';
+      }
+    }
+
+    // CREATE EVENT
+    function openCreateEvent() {
+      document.getElementById('create-event-modal').classList.add('active');
+    }
+
+    function closeCreateEvent() {
+      document.getElementById('create-event-modal').classList.remove('active');
+    }
+
+    async function handleCreateEvent() {
+      const name = document.getElementById('event-name').value;
+      const date = document.getElementById('event-date').value;
+      const venue = document.getElementById('event-venue').value;
+
+      if (!name || !date) {
+        showToast('Missing Fields', 'Please enter event name and date', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, date, venue }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          showToast('Event Created', `"${name}" has been created. Log sent to Kafka!`);
+          closeCreateEvent();
+          document.getElementById('event-name').value = '';
+          document.getElementById('event-venue').value = '';
+          loadEvents();
+        } else {
+          showToast('Failed', data.error || 'Could not create event', 'error');
+        }
+      } catch (e) {
+        showToast('Error', 'Event service unavailable', 'error');
+      }
+    }
+
+    // BOOKING
+    async function handleBooking(eventId, eventName) {
+      const userId = currentUser || 'guest';
+
+      try {
+        const res = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId, userId }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          showToast('Booking Confirmed!', `You booked "${eventName}". Log sent to Kafka!`);
+        } else {
+          showToast('Booking Failed', data.error || 'Could not create booking', 'error');
+        }
+      } catch (e) {
+        showToast('Error', 'Booking service unavailable', 'error');
+      }
+    }
+
+    // LOAD BOOKINGS
+    async function loadBookings() {
+      const list = document.getElementById('bookings-list');
+      try {
+        const res = await fetch('/api/bookings');
+        const data = await res.json();
+        const bookings = data.bookings || [];
+
+        if (bookings.length === 0) {
+          list.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No bookings yet. Book an event first!</p></div>';
+          return;
+        }
+
+        list.innerHTML = bookings.map(b => `
+          <div class="booking-card">
+            <div class="booking-info">
+              <div class="booking-icon">🎫</div>
+              <div class="booking-details">
+                <h4>Booking #${b.id}</h4>
+                <p>Event ID: ${b.eventId} &nbsp;|&nbsp; User: ${b.userId}${b.createdAt ? ` &nbsp;|&nbsp; ${new Date(b.createdAt).toLocaleString()}` : ''}</p>
+              </div>
+            </div>
+            <div class="booking-status confirmed">${b.status}</div>
+          </div>
+        `).join('');
+
+      } catch (e) {
+        list.innerHTML = '<div class="empty-state"><div class="icon">⚠</div><p>Cannot load bookings. Is the booking service running?</p></div>';
+      }
+    }
+
+    // Enter key to login
+    document.getElementById('login-password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+  </script>
+
+</body>
+</html>

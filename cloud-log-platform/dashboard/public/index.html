@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud Log Platform - Observability Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f1923;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1a2332 0%, #0d1b2a 100%);
+      border-bottom: 2px solid #1e88e5;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header h1 { font-size: 22px; color: #fff; font-weight: 600; }
+    .header h1 span { color: #42a5f5; }
+
+    .header-right { display: flex; align-items: center; gap: 16px; }
+
+    .live-badge {
+      background: #1b5e20; color: #69f0ae;
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+    @keyframes glow { 0%, 100% { box-shadow: 0 0 5px #ef535055; } 50% { box-shadow: 0 0 20px #ef5350aa; } }
+
+    .refresh-info { color: #78909c; font-size: 12px; }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px; padding: 24px 32px;
+    }
+
+    .stat-card {
+      background: #1a2332; border: 1px solid #263238;
+      border-radius: 12px; padding: 20px; text-align: center;
+      transition: border-color 0.3s;
+    }
+    .stat-card:hover { border-color: #1e88e5; }
+    .stat-card .label {
+      font-size: 11px; color: #78909c;
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+    }
+    .stat-card .value { font-size: 28px; font-weight: 700; color: #fff; }
+    .stat-card .value.info { color: #42a5f5; }
+    .stat-card .value.error { color: #ef5350; }
+    .stat-card .value.warning { color: #ffa726; }
+    .stat-card .value.debug { color: #78909c; }
+    .stat-card .value.critical { color: #d50000; }
+    .stat-card .value.total { color: #69f0ae; }
+
+    /* Service Status */
+    .services-bar {
+      display: flex; gap: 12px; padding: 0 32px 16px; flex-wrap: wrap;
+    }
+    .service-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: #1a2332; border: 1px solid #263238;
+      border-radius: 8px; padding: 8px 16px; font-size: 13px;
+    }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .status-dot.up { background: #69f0ae; box-shadow: 0 0 8px #69f0ae55; }
+    .status-dot.down { background: #ef5350; box-shadow: 0 0 8px #ef535055; }
+
+    /* Section Title */
+    .section-title {
+      padding: 24px 32px 12px;
+      font-size: 18px; font-weight: 600; color: #42a5f5;
+      border-top: 1px solid #263238;
+      margin-top: 8px;
+    }
+    .section-subtitle { color: #546e7a; font-size: 12px; font-weight: 400; margin-left: 12px; }
+
+    /* ML Analytics Grid */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px; padding: 0 32px 16px;
+    }
+
+    .analytics-card {
+      background: #1a2332; border: 1px solid #263238;
+      border-radius: 12px; padding: 20px;
+    }
+    .analytics-card.anomaly-active { border-color: #ef5350; animation: glow 2s infinite; }
+
+    .analytics-card h3 {
+      font-size: 14px; color: #90a4ae; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .analytics-card h3 .badge {
+      font-size: 10px; padding: 2px 8px; border-radius: 10px;
+      font-weight: 700;
+    }
+    .badge.ml { background: #7c4dff33; color: #b388ff; }
+    .badge.ai { background: #00bcd433; color: #84ffff; }
+
+    /* Health Score Circles */
+    .health-scores-grid {
+      display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+    }
+    .health-item { text-align: center; }
+    .health-circle {
+      width: 80px; height: 80px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; margin-bottom: 8px;
+      position: relative;
+    }
+    .health-circle.healthy { background: #1b5e2033; border: 3px solid #69f0ae; color: #69f0ae; }
+    .health-circle.degraded { background: #e6510033; border: 3px solid #ffa726; color: #ffa726; }
+    .health-circle.critical { background: #b71c1c33; border: 3px solid #ef5350; color: #ef5350; }
+    .health-label { font-size: 11px; color: #78909c; }
+    .health-status { font-size: 10px; text-transform: uppercase; font-weight: 700; margin-top: 4px; }
+    .health-status.healthy { color: #69f0ae; }
+    .health-status.degraded { color: #ffa726; }
+    .health-status.critical { color: #ef5350; }
+
+    /* Anomaly List */
+    .anomaly-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+    .anomaly-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: 8px; font-size: 12px;
+    }
+    .anomaly-item.HIGH { background: #b71c1c22; border-left: 3px solid #ef5350; }
+    .anomaly-item.MEDIUM { background: #e6510022; border-left: 3px solid #ffa726; }
+    .anomaly-score { font-weight: 700; min-width: 40px; }
+    .anomaly-score.HIGH { color: #ef5350; }
+    .anomaly-score.MEDIUM { color: #ffa726; }
+    .anomaly-time { color: #546e7a; min-width: 50px; }
+    .anomaly-reason { color: #b0bec5; flex: 1; }
+
+    /* Trend Items */
+    .trend-list { display: flex; flex-direction: column; gap: 10px; }
+    .trend-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; background: #0d1b2a; border-radius: 8px;
+    }
+    .trend-level { font-weight: 600; font-size: 13px; min-width: 80px; }
+    .trend-arrow { font-size: 18px; min-width: 30px; text-align: center; }
+    .trend-arrow.increasing { color: #ef5350; }
+    .trend-arrow.decreasing { color: #69f0ae; }
+    .trend-arrow.stable { color: #78909c; }
+    .trend-change { font-size: 12px; font-weight: 600; min-width: 70px; text-align: right; }
+    .trend-change.increasing { color: #ef5350; }
+    .trend-change.decreasing { color: #69f0ae; }
+    .trend-change.stable { color: #78909c; }
+
+    /* Prediction Items */
+    .prediction-list { display: flex; flex-direction: column; gap: 10px; }
+    .prediction-item {
+      padding: 10px 12px; background: #0d1b2a; border-radius: 8px;
+    }
+    .prediction-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+    }
+    .prediction-level { font-weight: 600; font-size: 13px; }
+    .risk-badge {
+      font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 700;
+    }
+    .risk-badge.HIGH { background: #b71c1c44; color: #ef5350; }
+    .risk-badge.MEDIUM { background: #e6510044; color: #ffa726; }
+    .risk-badge.LOW { background: #1b5e2044; color: #69f0ae; }
+    .prediction-bar { display: flex; gap: 8px; align-items: center; font-size: 11px; }
+    .pred-track { flex: 1; height: 8px; background: #263238; border-radius: 4px; overflow: hidden; }
+    .pred-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+    .pred-fill.current { background: #42a5f5; }
+    .pred-fill.predicted { background: #ff7043; }
+
+    /* Filters */
+    .filters {
+      display: flex; gap: 12px; padding: 0 32px 16px;
+      align-items: center; flex-wrap: wrap;
+    }
+    .filters select {
+      background: #1a2332; color: #e0e0e0; border: 1px solid #37474f;
+      border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+    }
+    .filters select:focus { outline: none; border-color: #1e88e5; }
+    .filters label { font-size: 13px; color: #78909c; }
+
+    /* Charts */
+    .charts-section {
+      padding: 0 32px 16px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    .chart-card {
+      background: #1a2332; border: 1px solid #263238;
+      border-radius: 12px; padding: 20px;
+    }
+    .chart-card h3 { font-size: 14px; color: #90a4ae; margin-bottom: 16px; }
+    .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+    .bar-row { display: flex; align-items: center; gap: 10px; }
+    .bar-label { width: 120px; font-size: 13px; color: #b0bec5; text-align: right; }
+    .bar-track { flex: 1; height: 24px; background: #263238; border-radius: 4px; overflow: hidden; }
+    .bar-fill {
+      height: 100%; border-radius: 4px; transition: width 0.8s ease;
+      display: flex; align-items: center; padding-left: 8px;
+      font-size: 11px; font-weight: 600; color: #fff;
+    }
+    .bar-fill.auth { background: linear-gradient(90deg, #1e88e5, #42a5f5); }
+    .bar-fill.event { background: linear-gradient(90deg, #43a047, #66bb6a); }
+    .bar-fill.booking { background: linear-gradient(90deg, #fb8c00, #ffa726); }
+    .bar-fill.INFO { background: linear-gradient(90deg, #1e88e5, #42a5f5); }
+    .bar-fill.WARNING { background: linear-gradient(90deg, #fb8c00, #ffa726); }
+    .bar-fill.ERROR { background: linear-gradient(90deg, #e53935, #ef5350); }
+    .bar-fill.DEBUG { background: linear-gradient(90deg, #546e7a, #78909c); }
+    .bar-fill.CRITICAL { background: linear-gradient(90deg, #b71c1c, #d50000); }
+
+    /* Logs Table */
+    .logs-section { padding: 0 32px 32px; }
+    .logs-section h2 { font-size: 16px; color: #90a4ae; margin-bottom: 12px; }
+    .logs-table-wrapper {
+      background: #1a2332; border: 1px solid #263238;
+      border-radius: 12px; overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: #0d1b2a; color: #78909c; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 1px;
+      padding: 12px 16px; text-align: left; border-bottom: 1px solid #263238;
+      position: sticky; top: 0;
+    }
+    tbody tr { border-bottom: 1px solid #1e2d3d; transition: background 0.2s; }
+    tbody tr:hover { background: #1e2d3d; }
+    tbody td { padding: 10px 16px; font-size: 13px; }
+
+    .level-badge {
+      padding: 3px 10px; border-radius: 4px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+    }
+    .level-badge.INFO { background: #0d47a1; color: #90caf9; }
+    .level-badge.ERROR { background: #b71c1c; color: #ef9a9a; }
+    .level-badge.WARNING { background: #e65100; color: #ffcc80; }
+    .level-badge.DEBUG { background: #37474f; color: #b0bec5; }
+    .level-badge.CRITICAL { background: #d50000; color: #ff8a80; animation: pulse 1s infinite; }
+
+    .service-badge { padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .service-badge.auth-service { background: #1a237e; color: #9fa8da; }
+    .service-badge.event-service { background: #1b5e20; color: #a5d6a7; }
+    .service-badge.booking-service { background: #e65100; color: #ffcc80; }
+
+    .log-message { color: #b0bec5; font-family: 'Consolas', monospace; font-size: 12px; }
+    .log-time { color: #546e7a; font-size: 12px; }
+
+    .scroll-container { max-height: 450px; overflow-y: auto; }
+    .scroll-container::-webkit-scrollbar { width: 6px; }
+    .scroll-container::-webkit-scrollbar-track { background: #1a2332; }
+    .scroll-container::-webkit-scrollbar-thumb { background: #37474f; border-radius: 3px; }
+
+    .loading { text-align: center; padding: 40px; color: #546e7a; font-size: 14px; }
+    .no-data { text-align: center; padding: 20px; color: #546e7a; font-size: 13px; }
+
+    /* Pattern Items */
+    .pattern-list { display: flex; flex-direction: column; gap: 8px; }
+    .pattern-item {
+      padding: 8px 12px; background: #0d1b2a; border-radius: 8px;
+      border-left: 3px solid #7c4dff; font-size: 12px;
+    }
+    .pattern-msg { color: #b0bec5; font-family: 'Consolas', monospace; margin-bottom: 4px; }
+    .pattern-meta { color: #546e7a; font-size: 11px; }
+
+    @media (max-width: 768px) {
+      .charts-section, .analytics-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(3, 1fr); }
+      .header { padding: 12px 16px; }
+      .stats-grid, .filters, .services-bar, .logs-section, .charts-section, .analytics-grid { padding-left: 16px; padding-right: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1><span>Cloud Log Platform</span> - Observability Dashboard</h1>
+    <div class="header-right">
+      <span class="live-badge">LIVE</span>
+      <span class="refresh-info">Auto-refresh: 5s</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="label">Total Logs</div>
+      <div class="value total" id="stat-total">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Debug</div>
+      <div class="value debug" id="stat-debug">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Info</div>
+      <div class="value info" id="stat-info">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Warning</div>
+      <div class="value warning" id="stat-warning">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Error</div>
+      <div class="value error" id="stat-error">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Critical</div>
+      <div class="value critical" id="stat-critical">-</div>
+    </div>
+  </div>
+
+  <!-- Service Status -->
+  <div class="services-bar" id="services-bar">
+    <div class="loading">Checking services...</div>
+  </div>
+
+  <!-- ML Analytics Section -->
+  <div class="section-title">ML-Powered Log Analytics <span class="section-subtitle">Isolation Forest | Linear Regression | TF-IDF Clustering</span></div>
+
+  <div class="analytics-grid">
+    <!-- Health Scores -->
+    <div class="analytics-card">
+      <h3>Service Health Scores <span class="badge ml">ML</span></h3>
+      <div class="health-scores-grid" id="health-scores">
+        <div class="no-data">Analyzing...</div>
+      </div>
+    </div>
+
+    <!-- Anomaly Detection -->
+    <div class="analytics-card" id="anomaly-card">
+      <h3>Anomaly Detection <span class="badge ai">Isolation Forest</span></h3>
+      <div class="anomaly-list" id="anomaly-list">
+        <div class="no-data">No anomalies detected</div>
+      </div>
+    </div>
+
+    <!-- Trend Analysis -->
+    <div class="analytics-card">
+      <h3>Trend Analysis <span class="badge ml">Moving Avg</span></h3>
+      <div class="trend-list" id="trend-list">
+        <div class="no-data">Analyzing trends...</div>
+      </div>
+    </div>
+
+    <!-- Predictions -->
+    <div class="analytics-card">
+      <h3>Predictive Analysis <span class="badge ai">Linear Regression</span></h3>
+      <div class="prediction-list" id="prediction-list">
+        <div class="no-data">Building predictions...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Patterns -->
+  <div class="analytics-grid" style="padding-top: 0;">
+    <div class="analytics-card" style="grid-column: span 2;">
+      <h3>Error Pattern Detection <span class="badge ai">TF-IDF + KMeans</span></h3>
+      <div class="pattern-list" id="pattern-list">
+        <div class="no-data">Detecting patterns...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-section">
+    <div class="chart-card">
+      <h3>Logs by Service</h3>
+      <div class="bar-chart" id="chart-service"></div>
+    </div>
+    <div class="chart-card">
+      <h3>Logs by Level</h3>
+      <div class="bar-chart" id="chart-level"></div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <label>Filter by Service:</label>
+    <select id="filter-service">
+      <option value="all">All Services</option>
+      <option value="auth-service">Auth Service</option>
+      <option value="event-service">Event Service</option>
+      <option value="booking-service">Booking Service</option>
+    </select>
+    <label>Filter by Level:</label>
+    <select id="filter-level">
+      <option value="all">All Levels</option>
+      <option value="DEBUG">DEBUG</option>
+      <option value="INFO">INFO</option>
+      <option value="WARNING">WARNING</option>
+      <option value="ERROR">ERROR</option>
+      <option value="CRITICAL">CRITICAL</option>
+    </select>
+  </div>
+
+  <!-- Logs Table -->
+  <div class="logs-section">
+    <h2>Recent Logs</h2>
+    <div class="logs-table-wrapper">
+      <div class="scroll-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Service</th>
+              <th>Level</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="logs-body">
+            <tr><td colspan="4" class="loading">Loading logs...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentService = 'all';
+    let currentLevel = 'all';
+
+    function formatTime(ts) {
+      if (!ts) return '-';
+      const d = new Date(ts);
+      if (isNaN(d)) return ts;
+      return d.toLocaleString();
+    }
+
+    function shortTime(ts) {
+      if (!ts) return '';
+      return ts.substring(11, 16) || '';
+    }
+
+    // ===== STATS =====
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+
+        document.getElementById('stat-total').textContent = data.total.toLocaleString();
+        document.getElementById('stat-debug').textContent = (data.byLevel.DEBUG || 0).toLocaleString();
+        document.getElementById('stat-info').textContent = (data.byLevel.INFO || 0).toLocaleString();
+        document.getElementById('stat-warning').textContent = (data.byLevel.WARNING || 0).toLocaleString();
+        document.getElementById('stat-error').textContent = (data.byLevel.ERROR || 0).toLocaleString();
+        document.getElementById('stat-critical').textContent = (data.byLevel.CRITICAL || 0).toLocaleString();
+
+        // Service chart
+        const serviceChart = document.getElementById('chart-service');
+        const maxService = Math.max(...Object.values(data.byService), 1);
+        serviceChart.innerHTML = Object.entries(data.byService).map(([name, count]) => {
+          const pct = (count / maxService * 100).toFixed(1);
+          const cls = name.replace('-service', '');
+          return `<div class="bar-row">
+            <div class="bar-label">${name}</div>
+            <div class="bar-track">
+              <div class="bar-fill ${cls}" style="width:${pct}%">${count.toLocaleString()}</div>
+            </div>
+          </div>`;
+        }).join('');
+
+        // Level chart
+        const levelChart = document.getElementById('chart-level');
+        const maxLevel = Math.max(...Object.values(data.byLevel), 1);
+        const levelOrder = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'];
+        const sortedLevels = Object.entries(data.byLevel).sort(
+          (a, b) => levelOrder.indexOf(a[0]) - levelOrder.indexOf(b[0])
+        );
+        levelChart.innerHTML = sortedLevels.map(([name, count]) => {
+          const pct = (count / maxLevel * 100).toFixed(1);
+          return `<div class="bar-row">
+            <div class="bar-label">${name}</div>
+            <div class="bar-track">
+              <div class="bar-fill ${name}" style="width:${pct}%">${count.toLocaleString()}</div>
+            </div>
+          </div>`;
+        }).join('');
+
+      } catch (e) {
+        console.error('Stats error:', e);
+      }
+    }
+
+    // ===== LOGS =====
+    async function loadLogs() {
+      try {
+        const params = new URLSearchParams({ limit: '100' });
+        if (currentService !== 'all') params.set('service', currentService);
+        if (currentLevel !== 'all') params.set('level', currentLevel);
+
+        const res = await fetch(`/api/logs?${params}`);
+        const logs = await res.json();
+
+        const tbody = document.getElementById('logs-body');
+        if (logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="loading">No logs found</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = logs.map(log => `
+          <tr>
+            <td class="log-time">${formatTime(log.timestamp)}</td>
+            <td><span class="service-badge ${log.service}">${log.service}</span></td>
+            <td><span class="level-badge ${log.level}">${log.level}</span></td>
+            <td class="log-message">${log.message || '-'}</td>
+          </tr>
+        `).join('');
+
+      } catch (e) {
+        console.error('Logs error:', e);
+      }
+    }
+
+    // ===== HEALTH =====
+    async function loadHealth() {
+      try {
+        const res = await fetch('/api/health');
+        const services = await res.json();
+        document.getElementById('services-bar').innerHTML = services.map(s => `
+          <div class="service-chip">
+            <div class="status-dot ${s.status === 'UP' ? 'up' : 'down'}"></div>
+            <span>${s.name}</span>
+            <span style="color:${s.status === 'UP' ? '#69f0ae' : '#ef5350'};font-weight:600">${s.status}</span>
+          </div>
+        `).join('');
+      } catch (e) {
+        document.getElementById('services-bar').innerHTML = '<span style="color:#ef5350">Could not check services</span>';
+      }
+    }
+
+    // ===== ML ANALYTICS =====
+    async function loadAnalytics() {
+      try {
+        const [summaryRes, anomalyRes, trendRes, predRes, patternRes] = await Promise.all([
+          fetch('/api/analytics/summary').catch(() => null),
+          fetch('/api/analytics/anomalies').catch(() => null),
+          fetch('/api/analytics/trends').catch(() => null),
+          fetch('/api/analytics/predictions').catch(() => null),
+          fetch('/api/analytics/patterns').catch(() => null),
+        ]);
+
+        // Health Scores
+        if (summaryRes && summaryRes.ok) {
+          const summary = await summaryRes.json();
+          renderHealthScores(summary.health_scores || {});
+        }
+
+        // Anomalies
+        if (anomalyRes && anomalyRes.ok) {
+          const anomalyData = await anomalyRes.json();
+          renderAnomalies(anomalyData.anomalies || []);
+        }
+
+        // Trends
+        if (trendRes && trendRes.ok) {
+          const trendData = await trendRes.json();
+          renderTrends(trendData);
+        }
+
+        // Predictions
+        if (predRes && predRes.ok) {
+          const predData = await predRes.json();
+          renderPredictions(predData.predictions || []);
+        }
+
+        // Patterns
+        if (patternRes && patternRes.ok) {
+          const patternData = await patternRes.json();
+          renderPatterns(patternData.patterns || []);
+        }
+
+      } catch (e) {
+        console.error('Analytics error:', e);
+      }
+    }
+
+    function renderHealthScores(scores) {
+      const container = document.getElementById('health-scores');
+      const entries = Object.entries(scores);
+      if (entries.length === 0) {
+        container.innerHTML = '<div class="no-data">Waiting for data...</div>';
+        return;
+      }
+      container.innerHTML = entries.map(([name, data]) => `
+        <div class="health-item">
+          <div class="health-circle ${data.status}">
+            ${Math.round(data.score)}
+          </div>
+          <div class="health-label">${name}</div>
+          <div class="health-status ${data.status}">${data.status}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderAnomalies(anomalies) {
+      const container = document.getElementById('anomaly-list');
+      const card = document.getElementById('anomaly-card');
+
+      if (anomalies.length === 0) {
+        container.innerHTML = '<div class="no-data">No anomalies detected - system normal</div>';
+        card.classList.remove('anomaly-active');
+        return;
+      }
+
+      card.classList.add('anomaly-active');
+      container.innerHTML = anomalies.map(a => `
+        <div class="anomaly-item ${a.severity}">
+          <span class="anomaly-score ${a.severity}">${a.anomaly_score}</span>
+          <span class="anomaly-time">${shortTime(a.timestamp)}</span>
+          <span class="anomaly-reason">${a.reason}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderTrends(trends) {
+      const container = document.getElementById('trend-list');
+      const details = trends.details || {};
+      const entries = Object.entries(details);
+
+      if (entries.length === 0) {
+        container.innerHTML = '<div class="no-data">Insufficient data for trend analysis</div>';
+        return;
+      }
+
+      const arrows = { increasing: '&#9650;', decreasing: '&#9660;', stable: '&#9644;' };
+      container.innerHTML = entries.map(([level, data]) => `
+        <div class="trend-item">
+          <span class="trend-level">${level}</span>
+          <span class="trend-arrow ${data.direction}">${arrows[data.direction] || '?'}</span>
+          <span class="trend-change ${data.direction}">${data.change_percent > 0 ? '+' : ''}${data.change_percent}%</span>
+        </div>
+      `).join('');
+    }
+
+    function renderPredictions(predictions) {
+      const container = document.getElementById('prediction-list');
+      if (predictions.length === 0) {
+        container.innerHTML = '<div class="no-data">Insufficient data for predictions</div>';
+        return;
+      }
+
+      const maxVal = Math.max(...predictions.map(p => Math.max(p.current_avg, p.predicted_avg)), 1);
+      container.innerHTML = predictions.map(p => `
+        <div class="prediction-item">
+          <div class="prediction-header">
+            <span class="prediction-level">${p.level}</span>
+            <span class="risk-badge ${p.risk_level}">${p.risk_level} RISK</span>
+          </div>
+          <div class="prediction-bar">
+            <span>Now: ${p.current_avg}</span>
+            <div class="pred-track">
+              <div class="pred-fill current" style="width:${(p.current_avg/maxVal*100).toFixed(1)}%"></div>
+            </div>
+          </div>
+          <div class="prediction-bar">
+            <span>Pred: ${p.predicted_avg}</span>
+            <div class="pred-track">
+              <div class="pred-fill predicted" style="width:${(p.predicted_avg/maxVal*100).toFixed(1)}%"></div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderPatterns(patterns) {
+      const container = document.getElementById('pattern-list');
+      if (patterns.length === 0) {
+        container.innerHTML = '<div class="no-data">No recurring error patterns detected</div>';
+        return;
+      }
+
+      container.innerHTML = patterns.map(p => `
+        <div class="pattern-item">
+          <div class="pattern-msg">${p.pattern}</div>
+          <div class="pattern-meta">
+            Occurrences: <strong>${p.count}</strong> |
+            Services: ${p.services.join(', ')} |
+            Severity: <span style="color:${p.severity === 'CRITICAL' ? '#ef5350' : '#ffa726'}">${p.severity}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ===== FILTERS =====
+    document.getElementById('filter-service').addEventListener('change', (e) => {
+      currentService = e.target.value;
+      loadLogs();
+    });
+    document.getElementById('filter-level').addEventListener('change', (e) => {
+      currentLevel = e.target.value;
+      loadLogs();
+    });
+
+    // ===== INIT =====
+    loadStats();
+    loadLogs();
+    loadHealth();
+    loadAnalytics();
+
+    setInterval(() => {
+      loadStats();
+      loadLogs();
+      loadHealth();
+    }, 5000);
+
+    // Analytics refreshes every 10 seconds
+    setInterval(loadAnalytics, 10000);
+  </script>
+
+</body>
+</html>
