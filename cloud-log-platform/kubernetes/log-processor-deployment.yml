@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-processor
+  namespace: cloud-log-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-processor
+  template:
+    metadata:
+      labels:
+        app: log-processor
+    spec:
+      containers:
+        - name: log-processor
+          image: log-processor:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: platform-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: log-processor
+  namespace: cloud-log-platform
+spec:
+  selector:
+    app: log-processor
+  ports:
+    - port: 8000
+      targetPort: 8000

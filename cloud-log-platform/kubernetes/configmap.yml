@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-config
+  namespace: cloud-log-platform
+data:
+  KAFKA_BROKER: "kafka-service:9092"
+  MONGO_URI: "mongodb://mongodb-service:27017"
+  LOG_TOPIC: "logs_topic"
+  METRICS_PORT: "8000"
