@@ -1,0 +1,211 @@
+version: '3.8'
+
+networks:
+  platform-net:
+    driver: bridge
+
+volumes:
+  mongo-data:
+
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    networks:
+      - platform-net
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    networks:
+      - platform-net
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG_RETENTION_HOURS: 24
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    networks:
+      - platform-net
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  auth-service:
+    build: ./services/auth-service
+    container_name: auth-service
+    networks:
+      - platform-net
+    ports:
+      - "3001:3001"
+    environment:
+      KAFKA_BROKER: kafka:9092
+      LOG_TOPIC: logs_topic
+      PORT: 3001
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: on-failure
+
+  event-service:
+    build: ./services/event-service
+    container_name: event-service
+    networks:
+      - platform-net
+    ports:
+      - "3002:3002"
+    environment:
+      KAFKA_BROKER: kafka:9092
+      LOG_TOPIC: logs_topic
+      PORT: 3002
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: on-failure
+
+  booking-service:
+    build: ./services/booking-service
+    container_name: booking-service
+    networks:
+      - platform-net
+    ports:
+      - "3003:3003"
+    environment:
+      KAFKA_BROKER: kafka:9092
+      LOG_TOPIC: logs_topic
+      PORT: 3003
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: on-failure
+
+  log-processor:
+    build: ./log-processor
+    container_name: log-processor
+    networks:
+      - platform-net
+    ports:
+      - "8000:8000"
+    environment:
+      KAFKA_BROKER: kafka:9092
+      MONGO_URI: mongodb://mongodb:27017
+      LOG_TOPIC: logs_topic
+      METRICS_PORT: 8000
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    restart: on-failure
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus
+    networks:
+      - platform-net
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: grafana
+    networks:
+      - platform-net
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    networks:
+      - platform-net
+    ports:
+      - "5000:5000"
+    environment:
+      AUTH_URL: http://auth-service:3001
+      EVENT_URL: http://event-service:3002
+      BOOKING_URL: http://booking-service:3003
+      PORT: 5000
+    depends_on:
+      - auth-service
+      - event-service
+      - booking-service
+    restart: on-failure
+
+  analytics-service:
+    build: ./analytics-service
+    container_name: analytics-service
+    networks:
+      - platform-net
+    ports:
+      - "5001:5001"
+    environment:
+      MONGO_URI: mongodb://mongodb:27017
+      PORT: 5001
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: on-failure
+
+  dashboard:
+    build: ./dashboard
+    container_name: dashboard
+    networks:
+      - platform-net
+    ports:
+      - "4000:4000"
+    environment:
+      MONGO_URI: mongodb://mongodb:27017
+      ANALYTICS_URL: http://analytics-service:5001
+      PORT: 4000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      analytics-service:
+        condition: service_started
+    restart: on-failure
