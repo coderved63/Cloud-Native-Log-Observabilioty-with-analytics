@@ -30,3 +30,9 @@ build/
 
 # Logs
 *.log
+
+# Local docs/notes
+files/
+context.txt
+format.txt
+report.md
