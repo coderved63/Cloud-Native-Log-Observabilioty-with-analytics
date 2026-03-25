@@ -59,9 +59,10 @@ A cloud-native microservices platform with real-time log processing, centralized
 | Technology | Purpose |
 |------------|---------|
 | Node.js 18 / Express | Microservices, Frontend, Dashboard |
-| Python 3.11 | Log Processor |
+| Python 3.11 / Flask | Log Processor, Analytics Service |
 | Apache Kafka 7.5.0 | Message broker for log streaming |
 | MongoDB 7.0 | Centralized log storage |
+| scikit-learn / NumPy / Pandas | ML-based log analytics |
 | Prometheus 2.47.0 | Metrics collection |
 | Grafana 10.1.0 | Metrics visualization |
 | Docker / Docker Compose | Containerization |
@@ -94,7 +95,7 @@ This starts all 12 services with proper dependency ordering. Wait ~60 seconds fo
 | Event Service | http://localhost:3002 | Event management (CRUD) |
 | Booking Service | http://localhost:3003 | Ticket booking system |
 | Log Dashboard | http://localhost:4000 | Real-time log viewer with filters |
-| Analytics Service | http://localhost:5001 | Log pattern analysis |
+| Analytics Service | http://localhost:5001 | ML-powered log analytics (anomalies, predictions, patterns) |
 | Log Processor | http://localhost:8000/metrics | Kafka consumer, writes to MongoDB |
 | Prometheus | http://localhost:9090 | Metrics collection |
 | Grafana | http://localhost:3000 | Dashboards (admin / admin) |
@@ -121,7 +122,10 @@ cloud-log-platform/
 │   ├── consumer.py            # Kafka consumer wrapper
 │   ├── storage.py             # MongoDB insertion
 │   └── metrics_server.py      # Prometheus metrics
-├── analytics-service/         # Log analytics (port 5001)
+├── analytics-service/         # ML-powered log analytics (port 5001)
+│   ├── app.py                 # Flask API server, scheduler (runs every 30s)
+│   ├── analyzer.py            # ML models (Isolation Forest, Linear Regression, KMeans)
+│   └── requirements.txt       # scikit-learn, numpy, pandas, flask
 ├── dashboard/                 # Log dashboard UI (port 4000)
 │   ├── server.js              # Express API (connects to MongoDB)
 │   └── public/index.html      # Dashboard UI
@@ -260,6 +264,51 @@ Access at http://localhost:4000. Features:
 - Service health status (UP/DOWN)
 - Log distribution charts (by service and level)
 - Color-coded severity badges
+
+## ML-Powered Analytics Service
+
+The Analytics Service (port 5001) runs **machine learning models** on log data every 30 seconds to provide intelligent insights.
+
+### ML Models Used
+
+| Model | Library | Purpose |
+|-------|---------|---------|
+| **Isolation Forest** | scikit-learn | Detects anomalous time windows (unusual spikes in errors/warnings) |
+| **Linear Regression** | scikit-learn | Predicts future error rates and identifies trending issues |
+| **TF-IDF + KMeans** | scikit-learn | Clusters error messages to find recurring failure patterns |
+
+### Analytics Endpoints
+
+```bash
+# Overall system summary (health scores, anomaly count, status)
+curl http://localhost:5001/api/analytics/summary
+
+# Detected anomalies (Isolation Forest results)
+curl http://localhost:5001/api/analytics/anomalies
+
+# Log rate trends (increasing/decreasing/stable per level)
+curl http://localhost:5001/api/analytics/trends
+
+# Error rate predictions (Linear Regression forecasts)
+curl http://localhost:5001/api/analytics/predictions
+
+# Per-service health scores (0-100, weighted by error severity)
+curl http://localhost:5001/api/analytics/health-score
+
+# Recurring error patterns (TF-IDF + KMeans clusters)
+curl http://localhost:5001/api/analytics/patterns
+```
+
+### How It Works
+
+1. **Every 30 seconds**, the analyzer reads logs from MongoDB
+2. **Anomaly Detection** — groups logs into 1-minute time windows, builds a feature matrix (counts per severity level), and runs Isolation Forest to flag unusual windows
+3. **Trend Analysis** — compares first-half vs second-half of recent logs to detect if errors/warnings are increasing or decreasing
+4. **Predictions** — fits Linear Regression on error counts over time, predicts the next 5 time windows, and assigns risk levels (HIGH/MEDIUM/LOW)
+5. **Health Scores** — calculates a 0-100 score per service based on error penalties (CRITICAL: -25, ERROR: -10, WARNING: -3 per occurrence)
+6. **Pattern Detection** — extracts error/critical log messages, vectorizes with TF-IDF, clusters with KMeans, and reports the top 5 recurring failure patterns
+
+The Dashboard (port 4000) consumes these analytics endpoints to display insights alongside live logs.
 
 ## Database
 
