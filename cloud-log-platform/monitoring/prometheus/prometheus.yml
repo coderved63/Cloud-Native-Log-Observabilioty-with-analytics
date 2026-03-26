@@ -26,3 +26,8 @@ scrape_configs:
     static_configs:
       - targets: ['log-processor:8000']
     metrics_path: '/metrics'
+
+  - job_name: 'vm-optimizer'
+    static_configs:
+      - targets: ['vm-optimizer:5002']
+    metrics_path: '/metrics'

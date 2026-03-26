@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vm-optimizer
+  namespace: cloud-log-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vm-optimizer
+  template:
+    metadata:
+      labels:
+        app: vm-optimizer
+    spec:
+      containers:
+        - name: vm-optimizer
+          image: vm-optimizer:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5002
+          env:
+            - name: MONGO_URI
+              value: "mongodb://mongodb:27017"
+            - name: DATA_DIR
+              value: "/app/data"
+            - name: PORT
+              value: "5002"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vm-optimizer
+  namespace: cloud-log-platform
+spec:
+  selector:
+    app: vm-optimizer
+  ports:
+    - port: 5002
+      targetPort: 5002
+  type: ClusterIP

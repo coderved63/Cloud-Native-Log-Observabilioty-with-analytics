@@ -31,6 +31,11 @@ build/
 # Logs
 *.log
 
+# VM dataset (large files - download from Kaggle)
+cloud-log-platform/vm-optimizer/data/*.csv
+cloud-log-platform/vm-optimizer/data/*.txt
+!cloud-log-platform/vm-optimizer/data/.gitkeep
+
 # Local docs/notes
 files/
 context.txt

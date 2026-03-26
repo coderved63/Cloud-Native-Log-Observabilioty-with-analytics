@@ -1,6 +1,6 @@
 # Cloud-Native Real-Time Log Processing and Observability Platform
 
-A cloud-native microservices platform with real-time log processing, centralized observability, and auto-scaling capabilities. Built with Node.js, Python, Apache Kafka, MongoDB, Prometheus, Grafana, Docker, and Kubernetes.
+A cloud-native microservices platform with real-time log processing, centralized observability, ML-powered analytics, and VM resource optimization. Built with Node.js, Python, Apache Kafka, MongoDB, Prometheus, Grafana, Docker, and Kubernetes. Uses the GWA Bitbrains dataset for VM workload analysis and placement optimization.
 
 ## Architecture
 
@@ -47,11 +47,15 @@ A cloud-native microservices platform with real-time log processing, centralized
                              |  :4000    |
                              +-----------+
 
-  +-----------+
-  | Frontend  |---> Auth Service (:3001)
-  | Web App   |---> Event Service (:3002)
-  |  :5000    |---> Booking Service (:3003)
-  +-----------+
+  +-----------+                +-----------+
+  | Frontend  |---> Services   |    VM     |
+  | Web App   |    (:3001-03)  | Optimizer |
+  |  :5000    |                | (Python)  |
+  +-----------+                |  :5002    |
+                               +-----------+
+                         (Bitbrains VM Dataset)
+                         KMeans | IsolationForest
+                         LinearRegression | BinPacking
 ```
 
 ## Tech Stack
@@ -84,7 +88,7 @@ cd cloud-log-platform
 docker compose up --build
 ```
 
-This starts all 12 services with proper dependency ordering. Wait ~60 seconds for Kafka and all services to be healthy.
+This starts all 13 services with proper dependency ordering. Wait ~60 seconds for Kafka and all services to be healthy.
 
 ## Services
 
@@ -94,8 +98,9 @@ This starts all 12 services with proper dependency ordering. Wait ~60 seconds fo
 | Auth Service | http://localhost:3001 | User authentication with JWT |
 | Event Service | http://localhost:3002 | Event management (CRUD) |
 | Booking Service | http://localhost:3003 | Ticket booking system |
-| Log Dashboard | http://localhost:4000 | Real-time log viewer with filters |
+| Log Dashboard | http://localhost:4000 | Real-time log viewer with filters + VM analytics |
 | Analytics Service | http://localhost:5001 | ML-powered log analytics (anomalies, predictions, patterns) |
+| VM Optimizer | http://localhost:5002 | ML-powered VM resource optimization (Bitbrains dataset) |
 | Log Processor | http://localhost:8000/metrics | Kafka consumer, writes to MongoDB |
 | Prometheus | http://localhost:9090 | Metrics collection |
 | Grafana | http://localhost:3000 | Dashboards (admin / admin) |
@@ -126,6 +131,14 @@ cloud-log-platform/
 │   ├── app.py                 # Flask API server, scheduler (runs every 30s)
 │   ├── analyzer.py            # ML models (Isolation Forest, Linear Regression, KMeans)
 │   └── requirements.txt       # scikit-learn, numpy, pandas, flask
+├── vm-optimizer/              # VM resource optimization (port 5002)
+│   ├── app.py                 # Flask API + scheduler (runs every 60s)
+│   ├── data_loader.py         # Bitbrains CSV parser (1,750 VM traces)
+│   ├── predictor.py           # CPU/memory prediction (Linear Regression)
+│   ├── classifier.py          # VM workload clustering (KMeans) + anomaly detection (Isolation Forest)
+│   ├── placement.py           # VM-to-host placement optimization (First Fit Decreasing)
+│   ├── requirements.txt       # scikit-learn, numpy, pandas, flask, prometheus-client
+│   └── data/                  # Bitbrains dataset CSV files
 ├── dashboard/                 # Log dashboard UI (port 4000)
 │   ├── server.js              # Express API (connects to MongoDB)
 │   └── public/index.html      # Dashboard UI
@@ -137,8 +150,8 @@ cloud-log-platform/
 │   │   └── prometheus.yml     # Scrape targets config
 │   └── grafana/
 │       ├── provisioning/      # Datasource + dashboard providers
-│       └── dashboards/        # Pre-configured 6-panel dashboard
-├── kubernetes/                # 14 K8s manifests
+│       └── dashboards/        # Pre-configured 11-panel dashboard
+├── kubernetes/                # 15 K8s manifests
 │   ├── namespace.yml
 │   ├── configmap.yml
 │   ├── *-deployment.yml       # Deployments + Services + HPAs
@@ -229,6 +242,7 @@ docker build -t log-processor:latest ./log-processor
 docker build -t dashboard:latest ./dashboard
 docker build -t frontend:latest ./frontend
 docker build -t analytics-service:latest ./analytics-service
+docker build -t vm-optimizer:latest ./vm-optimizer
 
 # 3. Apply manifests
 kubectl apply -f kubernetes/namespace.yml
@@ -248,7 +262,7 @@ minikube service dashboard -n cloud-log-platform
 ## Monitoring
 
 ### Grafana Dashboard (pre-configured)
-Access at http://localhost:3000 (admin / admin). The dashboard includes 6 panels:
+Access at http://localhost:3000 (admin / admin). The dashboard includes 11 panels:
 
 1. **HTTP Request Rate** - Requests/sec per service
 2. **HTTP Error Rate** - Errors/sec per service
@@ -256,6 +270,11 @@ Access at http://localhost:3000 (admin / admin). The dashboard includes 6 panels
 4. **Total Kafka Messages Sent** - Messages produced to Kafka
 5. **CPU Usage by Service** - CPU utilization percentage
 6. **Log Processing Errors** - Processing failure rate
+7. **VM Count & Hosts Needed** - Total VMs loaded and optimal host count
+8. **VM Average CPU Utilization** - Gauge showing avg CPU % across all VMs
+9. **VM Average Memory Utilization** - Gauge showing avg memory % across all VMs
+10. **VM Anomalies Detected** - Count of anomalous VMs (Isolation Forest)
+11. **VM Analysis Runs** - Rate of analysis pipeline executions
 
 ### Custom Log Dashboard
 Access at http://localhost:4000. Features:
@@ -309,6 +328,58 @@ curl http://localhost:5001/api/analytics/patterns
 6. **Pattern Detection** — extracts error/critical log messages, vectorizes with TF-IDF, clusters with KMeans, and reports the top 5 recurring failure patterns
 
 The Dashboard (port 4000) consumes these analytics endpoints to display insights alongside live logs.
+
+## VM Resource Optimizer (Bitbrains Dataset)
+
+The VM Optimizer service (port 5002) analyzes **real-world VM traces** from the GWA Bitbrains dataset (1,750 VMs from a managed hosting provider) and applies ML models for resource optimization.
+
+### Dataset
+
+The [GWA Bitbrains dataset](https://www.kaggle.com/datasets/gauravdhamane/gwa-bitbrains) contains traces from 1,750 VMs with 5-minute sampling intervals. Each trace includes: CPU cores, CPU capacity (MHz), CPU usage (MHz), memory provisioned (KB), memory usage (KB), disk I/O throughput, and network I/O throughput.
+
+Download the dataset and place CSV files in `vm-optimizer/data/`.
+
+### ML Models Used
+
+| Model | Library | Purpose |
+|-------|---------|---------|
+| **KMeans Clustering** | scikit-learn | Classifies VMs into workload types (cpu-intensive, memory-intensive, balanced, idle) |
+| **Isolation Forest** | scikit-learn | Detects anomalous VMs (overloaded or underutilized) |
+| **Linear Regression** | scikit-learn | Predicts future CPU and memory usage per VM |
+| **First Fit Decreasing** | custom | Bin packing algorithm for optimal VM-to-host placement |
+
+### VM Optimizer Endpoints
+
+```bash
+# Overall VM summary (total VMs, avg utilization, hosts needed)
+curl http://localhost:5002/api/vm/summary
+
+# CPU/memory usage predictions for top VMs
+curl http://localhost:5002/api/vm/predictions
+
+# VM workload classification (KMeans clusters)
+curl http://localhost:5002/api/vm/clusters
+
+# Optimal VM-to-host placement (bin packing)
+curl http://localhost:5002/api/vm/placement
+
+# Anomalous VMs (overloaded/underutilized)
+curl http://localhost:5002/api/vm/anomalies
+
+# Resource waste analysis (provisioned vs used)
+curl http://localhost:5002/api/vm/efficiency
+```
+
+### How It Works
+
+1. **Every 60 seconds**, the optimizer loads all Bitbrains VM trace files
+2. **Workload Classification** — builds a feature matrix (CPU/memory utilization, disk/network I/O) and clusters VMs using KMeans into 4 workload types
+3. **Anomaly Detection** — runs Isolation Forest to find VMs with unusual resource patterns (overloaded or nearly idle)
+4. **Usage Prediction** — fits Linear Regression on recent CPU/memory data per VM, predicts next 12 intervals (1 hour), assigns risk levels
+5. **Placement Optimization** — sorts VMs by CPU usage (descending) and applies First Fit Decreasing bin packing to pack VMs into minimum hosts
+6. **Efficiency Analysis** — compares provisioned vs actual resource usage to identify waste, overprovisioned, and underprovisioned VMs
+
+The Dashboard (port 4000) displays all VM analytics including cluster distribution, anomaly alerts, placement visualization, and efficiency metrics.
 
 ## Database
 

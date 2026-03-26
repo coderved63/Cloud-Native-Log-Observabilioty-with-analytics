@@ -267,6 +267,54 @@
     .loading { text-align: center; padding: 40px; color: #546e7a; font-size: 14px; }
     .no-data { text-align: center; padding: 20px; color: #546e7a; font-size: 13px; }
 
+    /* Tabs */
+    .tab-bar { display: flex; gap: 0; padding: 0 32px; }
+    .tab-btn {
+      padding: 10px 24px; font-size: 13px; font-weight: 600; cursor: pointer;
+      background: #1a2332; color: #78909c; border: 1px solid #263238;
+      border-bottom: none; border-radius: 8px 8px 0 0;
+      transition: all 0.2s;
+    }
+    .tab-btn.active { background: #0d1b2a; color: #42a5f5; border-color: #1e88e5; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* VM Analytics */
+    .vm-stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px; margin-bottom: 16px;
+    }
+    .vm-stat { background: #0d1b2a; border-radius: 8px; padding: 14px; text-align: center; }
+    .vm-stat .vm-val { font-size: 24px; font-weight: 700; color: #42a5f5; }
+    .vm-stat .vm-label { font-size: 10px; color: #78909c; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+    .vm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 32px 16px; }
+    .vm-card { background: #1a2332; border: 1px solid #263238; border-radius: 12px; padding: 20px; }
+    .vm-card h3 { font-size: 14px; color: #90a4ae; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+    .vm-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .vm-table th { background: #0d1b2a; color: #78909c; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; }
+    .vm-table td { padding: 6px 8px; border-bottom: 1px solid #1e2d3d; color: #b0bec5; }
+
+    .vm-cluster-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+    .vm-cluster-segment { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+    .vm-cluster-segment.cpu-intensive { background: #e53935; }
+    .vm-cluster-segment.memory-intensive { background: #1e88e5; }
+    .vm-cluster-segment.balanced { background: #43a047; }
+    .vm-cluster-segment.idle { background: #546e7a; }
+
+    .vm-host-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+    .vm-host-block {
+      background: #0d1b2a; border: 1px solid #263238; border-radius: 6px;
+      padding: 8px 12px; min-width: 120px; font-size: 11px;
+    }
+    .vm-host-block .host-name { color: #42a5f5; font-weight: 700; margin-bottom: 4px; }
+    .vm-util-bar { height: 4px; background: #263238; border-radius: 2px; margin-top: 4px; }
+    .vm-util-fill { height: 100%; border-radius: 2px; }
+    .vm-util-fill.low { background: #69f0ae; }
+    .vm-util-fill.med { background: #ffa726; }
+    .vm-util-fill.high { background: #ef5350; }
+
     /* Pattern Items */
     .pattern-list { display: flex; flex-direction: column; gap: 8px; }
     .pattern-item {
@@ -370,6 +418,59 @@
       <h3>Error Pattern Detection <span class="badge ai">TF-IDF + KMeans</span></h3>
       <div class="pattern-list" id="pattern-list">
         <div class="no-data">Detecting patterns...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VM Analytics Section -->
+  <div class="section-title">VM Resource Analytics <span class="section-subtitle">Bitbrains Dataset | KMeans | Isolation Forest | Linear Regression | Bin Packing</span></div>
+
+  <div class="analytics-grid">
+    <!-- VM Summary -->
+    <div class="analytics-card">
+      <h3>VM Overview <span class="badge ml">Bitbrains</span></h3>
+      <div class="vm-stats-grid" id="vm-summary">
+        <div class="no-data">Loading VM data...</div>
+      </div>
+    </div>
+
+    <!-- VM Workload Clusters -->
+    <div class="analytics-card">
+      <h3>Workload Classification <span class="badge ai">KMeans</span></h3>
+      <div id="vm-clusters">
+        <div class="no-data">Classifying VMs...</div>
+      </div>
+    </div>
+
+    <!-- VM Anomalies -->
+    <div class="analytics-card">
+      <h3>Anomalous VMs <span class="badge ai">Isolation Forest</span></h3>
+      <div class="anomaly-list" id="vm-anomalies">
+        <div class="no-data">Detecting anomalies...</div>
+      </div>
+    </div>
+
+    <!-- VM Placement -->
+    <div class="analytics-card">
+      <h3>Optimized VM Placement <span class="badge ml">Bin Packing</span></h3>
+      <div id="vm-placement">
+        <div class="no-data">Optimizing placement...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VM Efficiency & Predictions -->
+  <div class="analytics-grid" style="padding-top: 0;">
+    <div class="analytics-card">
+      <h3>Resource Efficiency <span class="badge ml">Provisioned vs Used</span></h3>
+      <div id="vm-efficiency">
+        <div class="no-data">Analyzing efficiency...</div>
+      </div>
+    </div>
+    <div class="analytics-card">
+      <h3>Usage Predictions <span class="badge ai">Linear Regression</span></h3>
+      <div id="vm-predictions">
+        <div class="no-data">Building predictions...</div>
       </div>
     </div>
   </div>
@@ -693,6 +794,136 @@
       `).join('');
     }
 
+    // ===== VM ANALYTICS =====
+    async function loadVMAnalytics() {
+      try {
+        const [summaryRes, clustersRes, anomaliesRes, placementRes, efficiencyRes, predictionsRes] = await Promise.all([
+          fetch('/api/vm/summary').catch(() => null),
+          fetch('/api/vm/clusters').catch(() => null),
+          fetch('/api/vm/anomalies').catch(() => null),
+          fetch('/api/vm/placement').catch(() => null),
+          fetch('/api/vm/efficiency').catch(() => null),
+          fetch('/api/vm/predictions').catch(() => null),
+        ]);
+
+        // VM Summary
+        if (summaryRes && summaryRes.ok) {
+          const s = await summaryRes.json();
+          document.getElementById('vm-summary').innerHTML = `
+            <div class="vm-stat"><div class="vm-val">${s.total_vms || 0}</div><div class="vm-label">Total VMs</div></div>
+            <div class="vm-stat"><div class="vm-val">${s.avg_cpu_utilization || 0}%</div><div class="vm-label">Avg CPU</div></div>
+            <div class="vm-stat"><div class="vm-val">${s.avg_memory_utilization || 0}%</div><div class="vm-label">Avg Memory</div></div>
+            <div class="vm-stat"><div class="vm-val">${s.total_hosts_needed || 0}</div><div class="vm-label">Hosts Needed</div></div>
+            <div class="vm-stat"><div class="vm-val">${s.hosts_saved || 0}</div><div class="vm-label">Hosts Saved</div></div>
+            <div class="vm-stat"><div class="vm-val">${s.anomalous_vms || 0}</div><div class="vm-label">Anomalies</div></div>
+          `;
+        }
+
+        // Clusters
+        if (clustersRes && clustersRes.ok) {
+          const c = await clustersRes.json();
+          const summary = c.summary || {};
+          const total = c.total_vms || 1;
+          const colors = { 'cpu-intensive': '#e53935', 'memory-intensive': '#1e88e5', 'balanced': '#43a047', 'idle': '#546e7a' };
+
+          let barHTML = '<div class="vm-cluster-bar">';
+          let legendHTML = '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">';
+          for (const [type, data] of Object.entries(summary)) {
+            const pct = (data.count / total * 100).toFixed(1);
+            const baseType = type.replace(/-\d+$/, '');
+            const color = colors[baseType] || '#78909c';
+            barHTML += `<div class="vm-cluster-segment" style="width:${pct}%;background:${color}">${pct}%</div>`;
+            legendHTML += `<span style="font-size:11px;color:${color}">${type}: ${data.count} VMs (CPU: ${data.avg_cpu}%, Mem: ${data.avg_memory}%)</span>`;
+          }
+          barHTML += '</div>';
+          legendHTML += '</div>';
+          document.getElementById('vm-clusters').innerHTML = barHTML + legendHTML;
+        }
+
+        // VM Anomalies
+        if (anomaliesRes && anomaliesRes.ok) {
+          const a = await anomaliesRes.json();
+          const anomalies = a.anomalies || [];
+          const container = document.getElementById('vm-anomalies');
+          if (anomalies.length === 0) {
+            container.innerHTML = '<div class="no-data">No anomalous VMs detected</div>';
+          } else {
+            container.innerHTML = anomalies.slice(0, 8).map(v => `
+              <div class="anomaly-item ${v.severity}">
+                <span class="anomaly-score ${v.severity}">${v.anomaly_score}</span>
+                <span style="min-width:80px;font-weight:600">${v.vm_name}</span>
+                <span class="anomaly-reason">${v.reason}</span>
+                <span style="color:#546e7a;font-size:11px">${v.recommendation}</span>
+              </div>
+            `).join('');
+          }
+        }
+
+        // Placement
+        if (placementRes && placementRes.ok) {
+          const p = await placementRes.json();
+          let html = `<div style="margin-bottom:12px;font-size:12px;color:#b0bec5;">
+            <strong style="color:#42a5f5">${p.total_vms_placed || 0}</strong> VMs packed into
+            <strong style="color:#69f0ae">${p.total_hosts_needed || 0}</strong> hosts
+            (saved <strong style="color:#ffa726">${p.hosts_saved || 0}</strong> hosts vs naive 1:1)
+            | Consolidation ratio: <strong>${p.consolidation_ratio || 0}x</strong>
+          </div>`;
+          html += '<div class="vm-host-bar">';
+          (p.hosts || []).slice(0, 12).forEach(h => {
+            const cpuCls = h.cpu_utilization_pct > 70 ? 'high' : h.cpu_utilization_pct > 40 ? 'med' : 'low';
+            html += `<div class="vm-host-block">
+              <div class="host-name">${h.host_id} (${h.vm_count} VMs)</div>
+              <div style="font-size:10px;color:#78909c">CPU: ${h.cpu_utilization_pct}%</div>
+              <div class="vm-util-bar"><div class="vm-util-fill ${cpuCls}" style="width:${h.cpu_utilization_pct}%"></div></div>
+            </div>`;
+          });
+          html += '</div>';
+          document.getElementById('vm-placement').innerHTML = html;
+        }
+
+        // Efficiency
+        if (efficiencyRes && efficiencyRes.ok) {
+          const e = await efficiencyRes.json();
+          document.getElementById('vm-efficiency').innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+              <div class="vm-stat"><div class="vm-val" style="color:#ef5350">${e.cpu_waste_pct || 0}%</div><div class="vm-label">CPU Wasted</div></div>
+              <div class="vm-stat"><div class="vm-val" style="color:#ef5350">${e.memory_waste_pct || 0}%</div><div class="vm-label">Memory Wasted</div></div>
+              <div class="vm-stat"><div class="vm-val" style="color:#ffa726">${e.overprovisioned_count || 0}</div><div class="vm-label">Overprovisioned</div></div>
+              <div class="vm-stat"><div class="vm-val" style="color:#e53935">${e.underprovisioned_count || 0}</div><div class="vm-label">Underprovisioned</div></div>
+            </div>
+            <div style="font-size:11px;color:#78909c;">
+              Right-sized VMs: <strong style="color:#69f0ae">${e.right_sized_count || 0}</strong> / ${e.total_vms || 0}
+            </div>
+          `;
+        }
+
+        // Predictions
+        if (predictionsRes && predictionsRes.ok) {
+          const p = await predictionsRes.json();
+          const preds = p.predictions || [];
+          if (preds.length === 0) {
+            document.getElementById('vm-predictions').innerHTML = '<div class="no-data">No prediction data available</div>';
+          } else {
+            document.getElementById('vm-predictions').innerHTML = preds.slice(0, 6).map(vm => `
+              <div class="prediction-item">
+                <div class="prediction-header">
+                  <span class="prediction-level">${vm.vm_name}</span>
+                  <span class="risk-badge ${vm.risk_level}">${vm.risk_level}</span>
+                </div>
+                <div style="font-size:11px;color:#78909c;display:flex;gap:16px;">
+                  <span>CPU: ${vm.predicted_cpu_utilization}% (${vm.cpu_prediction.trend})</span>
+                  <span>Mem: ${vm.predicted_memory_utilization}% (${vm.memory_prediction.trend})</span>
+                </div>
+              </div>
+            `).join('');
+          }
+        }
+
+      } catch (e) {
+        console.error('VM Analytics error:', e);
+      }
+    }
+
     // ===== FILTERS =====
     document.getElementById('filter-service').addEventListener('change', (e) => {
       currentService = e.target.value;
@@ -708,6 +939,7 @@
     loadLogs();
     loadHealth();
     loadAnalytics();
+    loadVMAnalytics();
 
     setInterval(() => {
       loadStats();
@@ -717,6 +949,9 @@
 
     // Analytics refreshes every 10 seconds
     setInterval(loadAnalytics, 10000);
+
+    // VM analytics refreshes every 15 seconds
+    setInterval(loadVMAnalytics, 15000);
   </script>
 
 </body>

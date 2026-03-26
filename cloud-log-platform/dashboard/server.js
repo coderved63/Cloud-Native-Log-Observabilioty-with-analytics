@@ -6,6 +6,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongodb:27017';
 const ANALYTICS_URL = process.env.ANALYTICS_URL || 'http://analytics-service:5001';
+const VM_OPTIMIZER_URL = process.env.VM_OPTIMIZER_URL || 'http://vm-optimizer:5002';
 
 let db;
 
@@ -67,6 +68,7 @@ app.get('/api/health', async (req, res) => {
     { name: 'event-service', url: 'http://event-service:3002/health' },
     { name: 'booking-service', url: 'http://booking-service:3003/health' },
     { name: 'analytics-service', url: `${ANALYTICS_URL}/health` },
+    { name: 'vm-optimizer', url: `${VM_OPTIMIZER_URL}/health` },
   ];
 
   const results = await Promise.all(services.map(async (svc) => {
@@ -97,6 +99,22 @@ app.get('/api/analytics/:endpoint', async (req, res) => {
     res.json(data);
   } catch (e) {
     res.status(503).json({ error: 'Analytics service unavailable' });
+  }
+});
+
+// API: Proxy VM optimizer endpoints
+app.get('/api/vm/:endpoint', async (req, res) => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const resp = await fetch(`${VM_OPTIMIZER_URL}/api/vm/${req.params.endpoint}`, {
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    const data = await resp.json();
+    res.json(data);
+  } catch (e) {
+    res.status(503).json({ error: 'VM Optimizer service unavailable' });
   }
 });
 

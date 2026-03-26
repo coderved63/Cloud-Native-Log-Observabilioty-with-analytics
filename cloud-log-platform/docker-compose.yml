@@ -190,6 +190,24 @@ services:
         condition: service_healthy
     restart: on-failure
 
+  vm-optimizer:
+    build: ./vm-optimizer
+    container_name: vm-optimizer
+    networks:
+      - platform-net
+    ports:
+      - "5002:5002"
+    environment:
+      MONGO_URI: mongodb://mongodb:27017
+      DATA_DIR: /app/data
+      PORT: 5002
+    volumes:
+      - ./vm-optimizer/data:/app/data:ro
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: on-failure
+
   dashboard:
     build: ./dashboard
     container_name: dashboard
@@ -200,10 +218,13 @@ services:
     environment:
       MONGO_URI: mongodb://mongodb:27017
       ANALYTICS_URL: http://analytics-service:5001
+      VM_OPTIMIZER_URL: http://vm-optimizer:5002
       PORT: 4000
     depends_on:
       mongodb:
         condition: service_healthy
       analytics-service:
+        condition: service_started
+      vm-optimizer:
         condition: service_started
     restart: on-failure
